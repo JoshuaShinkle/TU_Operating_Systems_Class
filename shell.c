@@ -1,7 +1,5 @@
-/*
- * tsh.c: Trivial sample version 1 of a UNIX command shell/interpreter.
- * Stefan Brandle, COS 421, Feb 2000. Mod Feb 2001.
- */
+// Micah Groeling and Joshua Shinkle
+// Compilation Instructions: $ gcc shell.c
 
 #include <stdio.h>
 #include <unistd.h>
@@ -22,30 +20,59 @@ int main(int argc, char* argv[], char* envp[])
         /* fgets leaves '\n' in input buffer. ditch it */
         line[strlen(line)-1] = '\0';
 
-        printf("%s", line);
-
-        /* 
-         * This is where I take the easy route.
-         * system() needs to get replaced by fork(), execvpe(), etc. in your version
-         */
         if(strcmp(line, "exit")==0) exit(0);
+        
+        char args[100];
+        int init_size = strlen(line);
+        char delim[] = " ";
+        char *str = strtok(line, delim);
+        int size_of_array = 0;
+        char *command_for_exec = str;
 
-        int r = fork();
-        int child_status;
-        switch(r) {
-            case -1: fprintf(stderr, "Yoiks!\n");
-                     exit(1);
-            case 0:  system(line);
-                     exit(0);
-                     // yell & exit
-            default:  waitpid(r, &child_status, 0);
+        for (int i=0; i<strlen(line); i++) {
+            if(&line[i] == " ")  {
+                size_of_array++;		
+            }
         }
 
-        /*
-        system( line );
-        */
+        char* array_for_exec[size_of_array + 1];// number of words is 1 more than number of space
+    
+        int token_number = 1;
+        array_for_exec[0] = command_for_exec;
+
+        while(str != NULL)
+        {
+            // printf("'%s'\n", str);
+            str = strtok(NULL, delim);
+            array_for_exec[token_number] = str;
+            token_number++;		
+        }
+        
+        if (strcmp(command_for_exec, "cd") == 0) {
+            int return_value = chdir(array_for_exec[1]);
+            if (return_value == -1) {
+                printf("Invalid directory!\n");
+            }
+        } else {
+            int r = fork();
+            int child_status;
+            switch(r) {
+                case -1: 
+                    fprintf(stderr, "Yoiks!\n");
+                    exit(1);
+                case 0:
+                    int return_value = execvp(command_for_exec, array_for_exec);
+                    if (return_value == -1) {
+                        printf("Invalid command!\n");
+                        exit(1);
+                    }
+                    exit(0);
+                default:  
+                    waitpid(r, &child_status, 0);
+            }
+        }
         printf("%s", prompt );
     }
 
     return 0;
-}
+} 
