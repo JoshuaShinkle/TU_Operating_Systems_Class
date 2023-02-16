@@ -48,6 +48,15 @@ int main(int argc, char* argv[], char* envp[])
             token_number++;		
         }
         
+        int fd[2];
+        char pipe[] = "|";
+        int pipe_check = 0;
+
+	    if(strcmp(array_for_exec[1], pipe)==0){
+            pipe_check = 1;
+            pipe(fd);
+        }
+
         if (strcmp(command_for_exec, "cd") == 0) {
             int return_value = chdir(array_for_exec[1]);
             if (return_value == -1) {
@@ -61,10 +70,17 @@ int main(int argc, char* argv[], char* envp[])
                     fprintf(stderr, "Yoiks!\n");
                     exit(1);
                 case 0:
-                    int return_value = execvp(command_for_exec, array_for_exec);
-                    if (return_value == -1) {
-                        printf("Invalid command!\n");
-                        exit(1);
+                    if(pipe_check){
+                        dup2(fd[1], 1);
+                        close(fd[0]);
+                        close(fd[1]);
+                        execvp(command_for_exec, array_for_exec[2]);
+                    } else {
+                        int return_value = execvp(command_for_exec, array_for_exec);
+                        if (return_value == -1) {
+                            printf("Invalid command!\n");
+                            exit(1);
+                        }
                     }
                     exit(0);
                 default:  
