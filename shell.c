@@ -60,16 +60,24 @@ int main(int argc, char* argv[], char* envp[])
         //     pipe(fd);
         // }
 
+        bool performing_redirection = false;
         bool performing_truncating_redirection = false;
+        bool performing_appending_redirection = false;
         int index_in_array_for_exec_of_redirect_filename = -1;
         int index_in_array_for_exec_of_redirect_symbol = -1;
         int size_of_array_for_exec_without_redirect_symbol_or_filename = 0;
         for (int i=0; i<token_number-1; i++) {
-            if (strcmp(array_for_exec[i], ">")==0){
-                performing_truncating_redirection = true;
+            if (strcmp(array_for_exec[i], ">")==0 || strcmp(array_for_exec[i], ">>")==0) {
+                performing_redirection = true;
                 index_in_array_for_exec_of_redirect_filename = i+1;
                 index_in_array_for_exec_of_redirect_symbol = i;
                 size_of_array_for_exec_without_redirect_symbol_or_filename = i;
+
+                if (strcmp(array_for_exec[i], ">")==0) {
+                    performing_truncating_redirection = true;
+                } else {
+                    performing_appending_redirection =  true;
+                }
             }
         }
 
@@ -91,10 +99,15 @@ int main(int argc, char* argv[], char* envp[])
                         // close(fd[0]);
                         // close(fd[1]);
                         // execvp(command_for_exec, array_for_exec[2]);
-                    } else if (performing_truncating_redirection) {
+                    } else if (performing_redirection) {
                         int redir_fd;
 
-                        redir_fd = open( array_for_exec[index_in_array_for_exec_of_redirect_filename], O_CREAT|O_WRONLY|O_TRUNC, 0777 );
+                        if (performing_truncating_redirection) {
+                            redir_fd = open( array_for_exec[index_in_array_for_exec_of_redirect_filename], O_CREAT|O_WRONLY|O_TRUNC, 0777 );
+                        } else if (performing_appending_redirection) {
+                            redir_fd = open( array_for_exec[index_in_array_for_exec_of_redirect_filename], O_CREAT|O_WRONLY|O_APPEND, 0777 );
+                        }
+
                         if( redir_fd == -1 ) {
                             printf("error openning file.\n");
                             return 2;
