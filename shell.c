@@ -12,6 +12,9 @@
 
 int main(int argc, char* argv[], char* envp[])
 {
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+
     char line[256];
     char prompt[] = "yo! % ";
 
@@ -20,6 +23,7 @@ int main(int argc, char* argv[], char* envp[])
 
     /* Try getting input. If error or EOF, exit */
     while( fgets(line, sizeof line, stdin) != NULL ) {
+        
         /* fgets leaves '\n' in input buffer. ditch it */
         line[strlen(line)-1] = '\0';
 
@@ -51,14 +55,14 @@ int main(int argc, char* argv[], char* envp[])
             token_number++;		
         }
         
-        // int fd[2];
-        // char pipe[] = "|";
-        int pipe_check = 0;
+    //     // int fd[2];
+    //     // char pipe[] = "|";
+    //     int pipe_check = 0;
 
-	    // if(strcmp(array_for_exec[1], pipe)==0){
-        //     pipe_check = 1;
-        //     pipe(fd);
-        // }
+	//     // if(strcmp(array_for_exec[1], pipe)==0){
+    //     //     pipe_check = 1;
+    //     //     pipe(fd);
+    //     // }
 
         bool performing_redirection = false;
         bool performing_truncating_redirection = false;
@@ -84,7 +88,7 @@ int main(int argc, char* argv[], char* envp[])
             }
         }
 
-        if (strcmp(command_for_exec, "cd") == 0) {
+        if (command_for_exec != NULL && strcmp(command_for_exec, "cd") == 0) {
             int return_value = chdir(array_for_exec[1]);
             if (return_value == -1) {
                 printf("Invalid directory!\n");
@@ -97,12 +101,14 @@ int main(int argc, char* argv[], char* envp[])
                     fprintf(stderr, "Yoiks!\n");
                     exit(1);
                 case 0:
-                    if(pipe_check){
-                        // dup2(fd[1], 1);
-                        // close(fd[0]);
-                        // close(fd[1]);
-                        // execvp(command_for_exec, array_for_exec[2]);
-                    } else if (performing_redirection) {
+                    signal(SIGINT, SIG_DFL);
+                    // if(pipe_check){
+                    //     // dup2(fd[1], 1);
+                    //     // close(fd[0]);
+                    //     // close(fd[1]);
+                    //     // execvp(command_for_exec, array_for_exec[2]);
+                    // } else 
+                    if (performing_redirection) {
                         int redir_fd;
 
                         if (performing_truncating_redirection) {
@@ -160,4 +166,4 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     return 0;
-} 
+}
