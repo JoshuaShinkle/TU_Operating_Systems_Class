@@ -63,11 +63,12 @@ int main(int argc, char* argv[], char* envp[])
         bool performing_redirection = false;
         bool performing_truncating_redirection = false;
         bool performing_appending_redirection = false;
+        bool performing_stdin_redirection = false;
         int index_in_array_for_exec_of_redirect_filename = -1;
         int index_in_array_for_exec_of_redirect_symbol = -1;
         int size_of_array_for_exec_without_redirect_symbol_or_filename = 0;
         for (int i=0; i<token_number-1; i++) {
-            if (strcmp(array_for_exec[i], ">")==0 || strcmp(array_for_exec[i], ">>")==0) {
+            if (strcmp(array_for_exec[i], ">")==0 || strcmp(array_for_exec[i], ">>")==0 || strcmp(array_for_exec[i], "<")==0) {
                 performing_redirection = true;
                 index_in_array_for_exec_of_redirect_filename = i+1;
                 index_in_array_for_exec_of_redirect_symbol = i;
@@ -75,8 +76,10 @@ int main(int argc, char* argv[], char* envp[])
 
                 if (strcmp(array_for_exec[i], ">")==0) {
                     performing_truncating_redirection = true;
-                } else {
+                } else if (strcmp(array_for_exec[i], ">>")==0) {
                     performing_appending_redirection =  true;
+                } else {
+                    performing_stdin_redirection = true;
                 }
             }
         }
@@ -106,6 +109,8 @@ int main(int argc, char* argv[], char* envp[])
                             redir_fd = open( array_for_exec[index_in_array_for_exec_of_redirect_filename], O_CREAT|O_WRONLY|O_TRUNC, 0777 );
                         } else if (performing_appending_redirection) {
                             redir_fd = open( array_for_exec[index_in_array_for_exec_of_redirect_filename], O_CREAT|O_WRONLY|O_APPEND, 0777 );
+                        } else {
+                            redir_fd = open( array_for_exec[index_in_array_for_exec_of_redirect_filename], O_RDONLY );
                         }
 
                         if( redir_fd == -1 ) {
@@ -113,9 +118,16 @@ int main(int argc, char* argv[], char* envp[])
                             return 2;
                         }
 
-                        if( dup2( redir_fd, 1 ) == -1 ) {
+                        if (performing_stdin_redirection) {
+                            if( dup2( redir_fd, 0 ) == -1 ) {
                             printf("error performing dup2.\n");
                             return 3;
+                            }
+                        } else {
+                            if( dup2( redir_fd, 1 ) == -1 ) {
+                                printf("error performing dup2.\n");
+                                return 3;
+                            }
                         }
 
                         close( redir_fd );
