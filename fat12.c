@@ -146,7 +146,7 @@ int main(int argc, char* argv[]) {
                 printf("Error: read(2) failed: %d\n", errno);
                 return 1;
             }
-            printf("Bytes/sector = %d\n", bytes_per_sector);
+            // printf("Bytes/sector = %d\n", bytes_per_sector);
 
 
             error = lseek(infile, 17, SEEK_SET); // offset of Maximum number of root directory entries
@@ -160,7 +160,7 @@ int main(int argc, char* argv[]) {
                 printf("Error: read(2) failed: %d\n", errno);
                 return 1;
             }
-            printf("max root = %d\n", max_root_dir_entries);
+            // printf("max root = %d\n", max_root_dir_entries);
 
 
             error = lseek(infile, 19*bytes_per_sector, SEEK_SET); // offset of beginning of root dir ----- 19 * bytes per sector
@@ -236,8 +236,17 @@ int main(int argc, char* argv[]) {
                         printf("%c", filename[j]);
                     }
 
-                    printf("%s\n", argv[3]);
-                    if (strcmp(argv[3], filename) == 0) {
+                    // strips extension off of cli filename to properly compare to filename found in fs
+                    char extension_stripped[8];
+                    for (int j=0; j<8; j++) {
+                        if (j != 0 && argv[3][j] == '.') {
+                            break;
+                        }
+                        extension_stripped[j] = argv[3][j];
+                    }
+                    
+                    printf("%s\n", extension_stripped);
+                    if (strcmp(extension_stripped, filename) == 0) {
                         printf("FOUND IT\n");
                         return 0;
                     }
