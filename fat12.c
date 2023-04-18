@@ -79,6 +79,58 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
             printf("Number of reserved sectors = %d\n", num_of_reserved_sectors);
+            
+            char num_of_fats;
+            error = read(infile, &num_of_fats, 1);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("Number of FATs = %d\n", num_of_fats);
+
+            short max_num_of_root_dir_entries;
+            error = read(infile, &max_num_of_root_dir_entries, 2);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("Maximum number of root directory entries = %d\n", max_num_of_root_dir_entries);
+
+            error = lseek(infile, 3, SEEK_CUR);
+            if (error == -1) {
+                printf("Error: lseek(2) failed: %d\n", errno);
+                return 1;
+            }
+            short sectors_per_FAT;
+            error = read(infile, &sectors_per_FAT, 2);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("Sectors/FAT = %d\n", sectors_per_FAT);
+
+            error = lseek(infile, 43, SEEK_SET); // offset to label field 22 bytes ahead
+            if (error == -1) {
+                printf("Error: lseek(2) failed: %d\n", errno);
+                return 1;
+            }
+
+            char label[11];
+            error = read(infile, &label, 11);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("Label = %s\n", label);
+
+            
+            char fs_type[14];
+            error = read(infile, &fs_type, 8);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("FS type = %s\n", fs_type);
              
         } else if (strcmp(argv[2], "-dir") == 0 || strcmp(argv[2], "-cat") == 0) {
 
@@ -183,7 +235,6 @@ int main(int argc, char* argv[]) {
                     for (int j=0; j<8; j++) {
                         printf("%c", filename[j]);
                     }
-                    
 
                     printf("%s\n", argv[3]);
                     if (strcmp(argv[3], filename) == 0) {
