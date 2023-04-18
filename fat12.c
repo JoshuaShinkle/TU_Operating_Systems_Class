@@ -79,8 +79,8 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
             printf("Number of reserved sectors = %d\n", num_of_reserved_sectors);
-            
-        } else if (strcmp(argv[2], "-dir") == 0) {
+             
+        } else if (strcmp(argv[2], "-dir") == 0 || strcmp(argv[2], "-cat") == 0) {
 
             // find the number of bytes per sector to be able to seek to the start of root directory
             error = lseek(infile, 11, SEEK_SET); // offset of beginning of fs details
@@ -88,25 +88,160 @@ int main(int argc, char* argv[]) {
                 printf("Error: lseek(2) failed: %d\n", errno);
                 return 1;
             }
-            char bytes_per_sector[2];
-            error = read(infile, bytes_per_sector, 2);
+            short bytes_per_sector;
+            error = read(infile, &bytes_per_sector, 2);
             if (error == -1) {
                 printf("Error: read(2) failed: %d\n", errno);
                 return 1;
             }
-            printf("Bytes/sector = ");
-            for (int i=0; i<sizeof bytes_per_sector; i++) {
-                printf("%d", bytes_per_sector[i]);
+            printf("Bytes/sector = %d\n", bytes_per_sector);
+
+
+            error = lseek(infile, 17, SEEK_SET); // offset of Maximum number of root directory entries
+            if (error == -1) {
+                printf("Error: lseek(2) failed: %d\n", errno);
+                return 1;
             }
-            printf("\n");
+            short max_root_dir_entries;
+            error = read(infile, &max_root_dir_entries, 2);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("max root = %d\n", max_root_dir_entries);
 
 
-            // how do we turn the buffer into an integer?
-            // error = lseek(infile, , SEEK_SET); // offset of beginning of root dir ----- 19 * bytes per sector
-            // if (error == -1) {
-            //     printf("Error: lseek(2) failed: %d\n", errno);
-            //     return 1;
-            // }
+            error = lseek(infile, 19*bytes_per_sector, SEEK_SET); // offset of beginning of root dir ----- 19 * bytes per sector
+            if (error == -1) {
+                printf("Error: lseek(2) failed: %d\n", errno);
+                return 1;
+            }
+
+            if (strcmp(argv[2], "-dir") == 0) {
+                for (int i=0; i<max_root_dir_entries; i++) {
+                    // print filename
+                    char filename[8];
+                    error = read(infile, filename, 8);
+                    if (error == -1) {
+                        printf("Error: read(2) failed: %d\n", errno);
+                        return 1;
+                    }
+                    for (int i=0; i<8; i++) {
+                        printf("%c", filename[i]);
+                    }
+
+                    // print file extension
+                    char extension[3];
+                    error = read(infile, extension, 3);
+                    if (error == -1) {
+                        printf("Error: read(2) failed: %d\n", errno);
+                        return 1;
+                    }
+                    printf("   .");
+                    for (int i=0; i<3; i++) {
+                        printf("%c", extension[i]);
+                    }
+
+                    // print first logical cluster
+                    error = lseek(infile, 26-11, SEEK_CUR); // offset 26 for first logical cluster - 11 for the 8+3 bytes we read for filename and extension
+                    if (error == -1) {
+                        printf("Error: lseek(2) failed: %d\n", errno);
+                        return 1;
+                    }
+                    short first_logical_cluster;
+                    error = read(infile, &first_logical_cluster, 2);
+                    if (error == -1) {
+                        printf("Error: read(2) failed: %d\n", errno);
+                        return 1;
+                    }
+                    printf(" first cluster=%d", first_logical_cluster);
+
+                    // print file size
+                    int file_size;
+                    error = read(infile, &file_size, 4);
+                    if (error == -1) {
+                        printf("Error: read(2) failed: %d\n", errno);
+                        return 1;
+                    }
+                    printf(" size=%d\n", file_size);
+                }
+            }
+            else if (strcmp(argv[2], "-cat") == 0) {
+                if (argc != 4) {
+                    printf("Usage: fat12 [-v] image_name [-dir|-info|-cat filename]\n");
+                    return 1;
+                }
+
+                for (int i=0; i<10; i++) {
+                    // print filename
+                    char filename[8];
+                    error = read(infile, filename, 8);
+                    if (error == -1) {
+                        printf("Error: read(2) failed: %d\n", errno);
+                        return 1;
+                    }
+                    for (int j=0; j<8; j++) {
+                        printf("%c", filename[j]);
+                    }
+                    
+
+                    printf("%s\n", argv[3]);
+                    if (strcmp(argv[3], filename) == 0) {
+                        printf("FOUND IT\n");
+                        return 0;
+                    }
+
+
+                    error = lseek(infile, 24, SEEK_CUR);
+                    if (error == -1) {
+                        printf("Error: lseek(2) failed: %d\n", errno);
+                        return 1;
+                    }
+                }
+                
+                // error = lseek(infile, 26, SEEK_CUR); // offset of First Logical Cluster
+                // if (error == -1) {
+                //     printf("Error: lseek(2) failed: %d\n", errno);
+                //     return 1;
+                // }
+
+                // short first_logical_cluster;
+                // error = read(infile, &first_logical_cluster, 2);
+                // if (error == -1) {
+                //     printf("Error: read(2) failed: %d\n", errno);
+                //     return 1;
+                // }
+                // printf("first cluster=%d\n", first_logical_cluster);
+
+                // // print file size
+                // int file_size;
+                // error = read(infile, &file_size, 4);
+                // if (error == -1) {
+                //     printf("Error: read(2) failed: %d\n", errno);
+                //     return 1;
+                // }
+                // printf("size=%d\n", file_size);
+
+                // // physical sector number = 33 + FAT entry number - 2
+                // int physical_sector_number = 33 + first_logical_cluster - 2;
+                // error = lseek(infile, physical_sector_number*bytes_per_sector, SEEK_SET); // offset of file ----- sector number * bytes per sector
+                // if (error == -1) {
+                //     printf("Error: lseek(2) failed: %d\n", errno);
+                //     return 1;
+                // }
+
+                // for (int i=0; i<file_size; i++) {
+                //     char buffer[1];
+                //     error = read(infile, buffer, 1);
+                //     if (error == -1) {
+                //         printf("Error: read(2) failed: %d\n", errno);
+                //         return 1;
+                //     }
+                //     printf("%c", buffer[0]);
+                // }
+                // printf("\n");
+
+            }
 
         } else if (strcmp(argv[2], "-cat") == 0) {
             if (argc != 4) {
@@ -114,34 +249,35 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            int infile = open(argv[3], O_RDONLY); 
-            if (infile == -1) {
-                    printf("Error opening file\n");
-                    return 1;
-            }
+            // printf("%s\n", argv[3]);
+            // int infile = open(argv[3], O_RDONLY); 
+            // if (infile == -1) {
+            //         printf("Error opening file: %d\n", errno);
+            //         return 1;
+            // }
 
-            // find file length for loop
-            int sizeof_file = lseek(infile, 0, SEEK_END); // seek to end of file and return offset
-            if (sizeof_file == -1) {
-                printf("Error: lseek(2) failed: %d\n", errno);
-                return 1;
-            }
-            error = lseek(infile, 0, SEEK_SET); // seek back to beginning
-            if (error == -1) {
-                printf("Error: lseek(2) failed: %d\n", errno);
-                return 1;
-            }
+            // // find file length for loop
+            // int sizeof_file = lseek(infile, 0, SEEK_END); // seek to end of file and return offset
+            // if (sizeof_file == -1) {
+            //     printf("Error: lseek(2) failed: %d\n", errno);
+            //     return 1;
+            // }
+            // error = lseek(infile, 0, SEEK_SET); // seek back to beginning
+            // if (error == -1) {
+            //     printf("Error: lseek(2) failed: %d\n", errno);
+            //     return 1;
+            // }
 
-            for (int i=0; i<sizeof_file; i++) {
-                char buffer[1];
-                error = read(infile, buffer, 1);
-                if (error == -1) {
-                    printf("Error: read(2) failed: %d\n", errno);
-                    return 1;
-                }
-                printf("%c", buffer[0]);
-            }
-            printf("\n");
+            // for (int i=0; i<sizeof_file; i++) {
+            //     char buffer[1];
+            //     error = read(infile, buffer, 1);
+            //     if (error == -1) {
+            //         printf("Error: read(2) failed: %d\n", errno);
+            //         return 1;
+            //     }
+            //     printf("%c", buffer[0]);
+            // }
+            // printf("\n");
 
         } else {
             printf("%s\n", argv[2]);
