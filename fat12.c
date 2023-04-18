@@ -80,6 +80,54 @@ int main(int argc, char* argv[]) {
             }
             printf("Number of reserved sectors = %d\n", num_of_reserved_sectors);
             
+            char num_of_fats;
+            error = read(infile, &num_of_fats, 21);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("Number of FATs = %d\n", num_of_fats);
+
+            short max_num_of_root_dir_entries;
+            error = read(infile, &max_num_of_root_dir_entries, 2);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("Maximum number of root directory entries = %d\n", max_num_of_root_dir_entries);
+
+            short total_sector_num;
+            error = read(infile, &total_sector_num, 2);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("Sectors/FAT = %d\n", total_sector_num);
+
+            error = lseek(infile, 43, SEEK_SET); // offset to label field 22 bytes ahead
+            if (error == -1) {
+                printf("Error: lseek(2) failed: %d\n", errno);
+                return 1;
+            }
+
+            char label[22];
+            error = read(infile, &label, 11);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("Label = %s\n", label);
+
+            
+            char fs_type[14];
+            error = read(infile, &fs_type, 8);
+            if (error == -1) {
+                printf("Error: read(2) failed: %d\n", errno);
+                return 1;
+            }
+            printf("FS type = %s\n", fs_type);
+            
+
         } else if (strcmp(argv[2], "-dir") == 0) {
 
             // find the number of bytes per sector to be able to seek to the start of root directory
