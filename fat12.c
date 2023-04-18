@@ -217,8 +217,8 @@ int main(int argc, char* argv[]) {
                     }
                     printf(" size=%d\n", file_size);
                 }
-            }
-            else if (strcmp(argv[2], "-cat") == 0) {
+
+            } else if (strcmp(argv[2], "-cat") == 0) {
                 if (argc != 4) {
                     printf("Usage: fat12 [-v] image_name [-dir|-info|-cat filename]\n");
                     return 1;
@@ -227,28 +227,77 @@ int main(int argc, char* argv[]) {
                 for (int i=0; i<10; i++) {
                     // print filename
                     char filename[8];
+                    memset(filename, 0, 8);
                     error = read(infile, filename, 8);
                     if (error == -1) {
                         printf("Error: read(2) failed: %d\n", errno);
                         return 1;
                     }
-                    for (int j=0; j<8; j++) {
-                        printf("%c", filename[j]);
-                    }
+                    // for (int j=0; j<8; j++) {
+                    //     printf("%c", filename[j]);
+                    // }
 
                     // strips extension off of cli filename to properly compare to filename found in fs
                     char extension_stripped[8];
+                    memset(extension_stripped, 0, 8);
                     for (int j=0; j<8; j++) {
                         if (j != 0 && argv[3][j] == '.') {
-                            break;
+                            for (j=j; j<8; j++) {
+                                extension_stripped[j] = ' ';
+                            }
                         }
                         extension_stripped[j] = argv[3][j];
                     }
                     
-                    printf("%s\n", extension_stripped);
-                    if (strcmp(extension_stripped, filename) == 0) {
-                        printf("FOUND IT\n");
-                        return 0;
+                    for (int j=0; j<8; j++) {
+                        if (extension_stripped[j] == filename[j]) {
+                            if (j == 7) { 
+                                // once you've found the correct file to cat then...
+                                error = lseek(infile, 18, SEEK_CUR); // offset of First Logical Cluster
+                                if (error == -1) {
+                                    printf("Error: lseek(2) failed: %d\n", errno);
+                                    return 1;
+                                }
+
+                                short first_logical_cluster;
+                                error = read(infile, &first_logical_cluster, 2);
+                                if (error == -1) {
+                                    printf("Error: read(2) failed: %d\n", errno);
+                                    return 1;
+                                }
+                                // printf("first cluster=%d\n", first_logical_cluster);
+
+                                // print file size
+                                int file_size;
+                                error = read(infile, &file_size, 4);
+                                if (error == -1) {
+                                    printf("Error: read(2) failed: %d\n", errno);
+                                    return 1;
+                                }
+                                // printf("size=%d\n", file_size);
+
+                                // physical sector number = 33 + FAT entry number - 2
+                                int physical_sector_number = 33 + first_logical_cluster - 2;
+                                error = lseek(infile, physical_sector_number*bytes_per_sector, SEEK_SET); // offset of file ----- sector number * bytes per sector
+                                if (error == -1) {
+                                    printf("Error: lseek(2) failed: %d\n", errno);
+                                    return 1;
+                                }
+
+                                for (int i=0; i<file_size; i++) {
+                                    char buffer[1];
+                                    error = read(infile, buffer, 1);
+                                    if (error == -1) {
+                                        printf("Error: read(2) failed: %d\n", errno);
+                                        return 1;
+                                    }
+                                    printf("%c", buffer[0]);
+                                }
+                                printf("\n");
+                            }
+                        } else {
+                            break;
+                        }
                     }
 
 
@@ -258,86 +307,7 @@ int main(int argc, char* argv[]) {
                         return 1;
                     }
                 }
-                
-                // error = lseek(infile, 26, SEEK_CUR); // offset of First Logical Cluster
-                // if (error == -1) {
-                //     printf("Error: lseek(2) failed: %d\n", errno);
-                //     return 1;
-                // }
-
-                // short first_logical_cluster;
-                // error = read(infile, &first_logical_cluster, 2);
-                // if (error == -1) {
-                //     printf("Error: read(2) failed: %d\n", errno);
-                //     return 1;
-                // }
-                // printf("first cluster=%d\n", first_logical_cluster);
-
-                // // print file size
-                // int file_size;
-                // error = read(infile, &file_size, 4);
-                // if (error == -1) {
-                //     printf("Error: read(2) failed: %d\n", errno);
-                //     return 1;
-                // }
-                // printf("size=%d\n", file_size);
-
-                // // physical sector number = 33 + FAT entry number - 2
-                // int physical_sector_number = 33 + first_logical_cluster - 2;
-                // error = lseek(infile, physical_sector_number*bytes_per_sector, SEEK_SET); // offset of file ----- sector number * bytes per sector
-                // if (error == -1) {
-                //     printf("Error: lseek(2) failed: %d\n", errno);
-                //     return 1;
-                // }
-
-                // for (int i=0; i<file_size; i++) {
-                //     char buffer[1];
-                //     error = read(infile, buffer, 1);
-                //     if (error == -1) {
-                //         printf("Error: read(2) failed: %d\n", errno);
-                //         return 1;
-                //     }
-                //     printf("%c", buffer[0]);
-                // }
-                // printf("\n");
-
             }
-
-        } else if (strcmp(argv[2], "-cat") == 0) {
-            if (argc != 4) {
-                printf("Usage: fat12 [-v] image_name [-dir|-info|-cat filename]\n");
-                return 1;
-            }
-
-            // printf("%s\n", argv[3]);
-            // int infile = open(argv[3], O_RDONLY); 
-            // if (infile == -1) {
-            //         printf("Error opening file: %d\n", errno);
-            //         return 1;
-            // }
-
-            // // find file length for loop
-            // int sizeof_file = lseek(infile, 0, SEEK_END); // seek to end of file and return offset
-            // if (sizeof_file == -1) {
-            //     printf("Error: lseek(2) failed: %d\n", errno);
-            //     return 1;
-            // }
-            // error = lseek(infile, 0, SEEK_SET); // seek back to beginning
-            // if (error == -1) {
-            //     printf("Error: lseek(2) failed: %d\n", errno);
-            //     return 1;
-            // }
-
-            // for (int i=0; i<sizeof_file; i++) {
-            //     char buffer[1];
-            //     error = read(infile, buffer, 1);
-            //     if (error == -1) {
-            //         printf("Error: read(2) failed: %d\n", errno);
-            //         return 1;
-            //     }
-            //     printf("%c", buffer[0]);
-            // }
-            // printf("\n");
 
         } else {
             printf("%s\n", argv[2]);
