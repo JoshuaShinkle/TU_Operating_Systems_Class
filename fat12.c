@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
 
 #define FILE_SYSTEM_TYPE_OFFSET 54
 
@@ -13,7 +14,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (argv[1] == "-v") {
+    if (strcmp(argv[1], "-v") == 0) {
         int infile = open(argv[2], O_RDONLY); 
         if (infile == -1) {
                 printf("Error opening file\n");
@@ -39,11 +40,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        // for (int i=0; i<sizeof buffer; i++) {
-        //     printf("%c", buffer[i]);
-        // }
-        // printf("\n");
-
         char comparison_buffer[] = {'F', 'A', 'T', '1', '2'};
         for (int i=0; i<sizeof comparison_buffer; i++) {
             if (buffer[i] != comparison_buffer[i]) {
@@ -52,46 +48,39 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (argv[2] == "-info") {
+        if (strcmp(argv[2], "-info") == 0) {
             error = lseek(infile, 11, SEEK_SET); // offset of beginning of fs details
             if (error == -1) {
                 printf("Error: lseek(2) failed: %d\n", errno);
                 return 1;
             }
 
-            char bytes_per_sector[2];
-            error = read(infile, bytes_per_sector, 2);
+            short bytes_per_sector;
+            error = read(infile, &bytes_per_sector, 2);
             if (error == -1) {
                 printf("Error: read(2) failed: %d\n", errno);
                 return 1;
             }
-            printf("Bytes/sector = ");
-            for (int i=0; i<sizeof bytes_per_sector; i++) {
-                printf("%d", bytes_per_sector[i]);
-            }
-            printf("\n");
+            printf("Bytes/sector = %d\n", bytes_per_sector);
 
-            char sectors_per_cluster[1];
-            error = read(infile, sectors_per_cluster, 1);
+            char sectors_per_cluster;
+            error = read(infile, &sectors_per_cluster, 1);
             if (error == -1) {
                 printf("Error: read(2) failed: %d\n", errno);
                 return 1;
             }
-            printf("Sectors/cluster = %d\n", sectors_per_cluster[0]);
+            printf("Sectors/cluster = %d\n", sectors_per_cluster);
 
 
-            char num_of_reserved_sectors[2];
-            error = read(infile, num_of_reserved_sectors, 2);
+            short num_of_reserved_sectors;
+            error = read(infile, &num_of_reserved_sectors, 2);
             if (error == -1) {
                 printf("Error: read(2) failed: %d\n", errno);
                 return 1;
             }
-            printf("Number of reserved sectors = ");
-            for (int i=0; i<sizeof num_of_reserved_sectors; i++) {
-                printf("%d", num_of_reserved_sectors[i]);
-            }
-            printf("\n");
-        } else if (argv[2] == "-dir") {
+            printf("Number of reserved sectors = %d\n", num_of_reserved_sectors);
+            
+        } else if (strcmp(argv[2], "-dir") == 0) {
 
             // find the number of bytes per sector to be able to seek to the start of root directory
             error = lseek(infile, 11, SEEK_SET); // offset of beginning of fs details
@@ -119,7 +108,7 @@ int main(int argc, char* argv[]) {
             //     return 1;
             // }
 
-        } else if (argv[2] == "-cat") {
+        } else if (strcmp(argv[2], "-cat") == 0) {
             if (argc != 4) {
                 printf("Usage: fat12 [-v] image_name [-dir|-info|-cat filename]\n");
                 return 1;
